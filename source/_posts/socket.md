@@ -29,7 +29,7 @@ int socket(int domain, int type, int protocol); // return socket_fd
 ```
 ### 参数 domain
 - AF_INET: ipv4
-- AF_INET: ipv6
+- AF_INET6: ipv6
 - AF_UNIX: unix域
 ### 参数 type
 
@@ -95,25 +95,13 @@ int socket(int domain, int type, int protocol); // return socket_fd
 注： 原始套接字：SOCK_RAW 必须指定具体的协议号（如 IPPROTO_ICMP），因为系统无法推断。
 
 ## 网络字节序相关函数
-网络协议指定了字节序，因此异构计算机系统能够交换协议细腻不会出现混淆字节序 
+网络协议指定了字节序，因此异构计算机系统能够交换协议细节不会出现混淆字节序 
 *TCP/IP采用大端字节序*
 
 ```C
 #include <arpa/inet.h>
 uint32_t htonl(uint32_t hostint32) // return 32位网络字节序
-uint16_t htons(uint32_t hostint16) // return 16位网络字节学
+uint16_t htons(uint16_t hostint16) // return 16位网络字节序
 uint32_t ntohl(uint32_t netint32) // return 32位主机字节序
-uint16_t ntohs(uint32_t netint16) // return 16位主机字节学
+uint16_t ntohs(uint16_t netint16) // return 16位主机字节序
 ```
-
-
-# TCP server 示例代码
-
-``` C
-
-
-```
-
-# TCP client 示例代码
-
-# UDP 示例代码
