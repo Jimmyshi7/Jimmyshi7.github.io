@@ -13,13 +13,44 @@ description: 《UNIX环境高级编程》笔记整理
 # 重要结构体
 
 ## 网络地址
+标识特定通信域的套接字端点（主要是ip+port）
 ```C
+
+
+struct sockaddr {  
+     sa_family_t sin_family;//地址族 
+     char sa_data[14]; //14字节，包含套接字中的目标地址和端口信息               
+}; 
+
+// ipv4 地址 sockaddr_in
+// Linux 下的sockaddr_in
+struct in_addr {  
+    uint32_t s_addr;          //32位无符号整型IP地址         
+}; 
 struct sockaddr_in{
-    sa_family_t sin_family;
-    in_port_t sin_port
-    struct in_addr_sin_addr;
+    sa_family_t sin_family; // 地址族
+    in_port_t sin_port // 16位端口号
+    struct in_addr sin_addr; // 32位IP地址
+    char sin_zero[8]; // 保留
 }
+
+// ipv6 地址
+struct in6_addr{
+    uint8_t s6_addr[16];
+};
+
+struct scokaddr_in6{
+    sa_family_t sin6_family; // 地址族
+    in_port_t sin6_port; //  16位端口号
+    uint32_t sin6_flowinfo; //流量类别和流量信息
+    struct in_addr sin6_addr; // 16个字节ipv6地址
+    uint32_t sin6_scope_id; // 范围内接口集合 
+} // 
+
 ```
+sockaddr_in sockaddr_in6均会被强转位sockaddr结构传入到套接字钟。
+
+
 
 # 常用函数
 
