@@ -5,7 +5,7 @@ tags:
     - Linux
     - socket网络编程
     - APUE
-description: 《UNIX环境高级编程》笔记整理
+description: 《UNIX环境高级编程》第十六章“网络IPC:套接字”笔记整理
 ---
 <!-- more -->
 
@@ -46,11 +46,72 @@ struct scokaddr_in6{
     struct in_addr sin6_addr; // 16个字节ipv6地址
     uint32_t sin6_scope_id; // 范围内接口集合 
 } // 
-
 ```
 sockaddr_in sockaddr_in6均会被强转位sockaddr结构传入到套接字钟。
 
 
+```C
+// 主机名
+struct hostnet{
+    char* h_name; // 正式主机名
+    char** h_aliases; //主机别名
+    int h_addrtype; // 地址类型 IPV4-AF_INET IPV6-AF_INET6
+    int h_lengthl; // 地址长度
+    char** h_addr_list; // 主机地址列表
+}
+
+// 网络名
+struct netent{
+    char* n_name; // 正式网络名
+    char **n_aliase; // 网络别名
+    int n_addrtype; // 地址类型
+    uint32_t n_net; // 网络号
+}
+
+// 协议
+struct protoent{
+    char *p_name; // 协议名称
+    char **p_aliases; // 协议别名
+    int p_proto; // 协议号
+}
+
+// 服务名
+struct servent{
+    char *s_name; //服务名
+    char **s_aliases; // 服务别名
+    int s_port; // 端口号
+    char *s_proto; // 协议名称
+}
+
+// 地址信息
+struct addrinfo{
+    int ai_flags;
+    int ai_family;
+    int socktype;
+    int ai_protocol;
+    socklen_t ai_addrlen;
+    struct sockaddr *ai_addr;
+    char *ai_canonname;
+    struct addrinfo *ai_next;
+}
+```
+|标志|描述|
+|--|--|
+|AI_ADDRCONFIG|查询配置的地址类型|
+|AI_ALL|查找IPv4和IPv6|
+
+## 消息传输
+```C
+struct msghdr{
+    void *msg_name; // 消息的协议地址，协议地址和套接口信息
+    socklen_t msg_namelen; // // 地址的长度
+    struct iovec *msgiov; // 多io缓冲区地址
+    int msg_iovlen; // 缓冲区个数
+    void *msg_control; // 辅助数据地址
+    socklen_t msg_controllen; // 辅助数据长度
+    int msg_flags; // 消息标识
+}
+```
 
 # 常用函数
 
@@ -136,3 +197,179 @@ uint16_t htons(uint16_t hostint16) // return 16位网络字节序
 uint32_t ntohl(uint32_t netint32) // return 32位主机字节序
 uint16_t ntohs(uint16_t netint16) // return 16位主机字节序
 ```
+## 地址转换
+```C
+#include <arpa/inet.h>
+const char *inet_ntop(int domain, const void *restrict addr, char *restrict str, sockken_t size);
+// 将网络字节序的二进制地址转化成文本格式地址
+// return 地址字符串指针
+// restrict: C99引入，优化关键字。这个关键字只能用于限定指针，并且它表明指针是访问一个数据对象的唯一且初始的方式.
+// 通过加上restrict关键字，编程者可提示编译器：在该指针的生命周期内，其指向的对象不会被别的指针所引用。
+// 这意味着编译器可以假设所有修改指针所指向内存中内容的操作都必须通过该指针来进行，而不能通过其他的变量或指针来进行修改。这样的约束允许编译器进行更有效的代码优化，生成更高效的汇编代码。
+
+
+int inet_pton(int domain, const char *restrict str, char *restrict addrr)
+// 字符串格式地址转二进制地址（sockaddr_in）
+// return 成功 1 格式无效 0 错误 -1
+```
+
+## 地址查询
+```C
+// 主机信息
+struct hostent *gethostent(void);
+void sethostent(int stayopen);
+void endhostent(void);
+
+// 网络信息
+struct hostent *getnetent(void);
+struct hostent *getnetentbyname(const char* name);
+struct hostent *getnetentbyaddr(uint32_t net, int type);
+
+//......中间还有协议信息、服务信息，函数都差不多
+
+// getaddrinfo 将主机名和服务名映射到地址
+int getaddrinfo(const char *restrict host, //一个主机名或者地址串(IPv4 的点分十进制串或者 IPv6 的 16 进制串)
+                const char *restrict service, // 服务名可以是十进制的端口号，也可以是已定义的服务名称，如 ftp、http 
+                const struct addrinfo * restrict hint, //可以是一个空指针，也可以是一个指向某个 addrinfo 结构体的指针，调用者在这个结构中填入关于期望返回的信息类型的暗示。
+                struct addrinfo **restrict res); // 本函数通过 result 指针参数返回一个指向 addrinfo 结构体链表的指针
+// return 0 成功 非0 失败
+// hint 是一个地址过滤模板，
+
+// getnameinfo 将地址转换成主机名或服务名
+int getnameinfo(const struct sockaddr *restrict addr,
+                socklen_t alen, char *restrict host,
+                socklen_t hostlen, char *restrict service,
+                socklen_t servlen, unsigned int flags);
+// addr: 指向套接字地址结构的指针。
+// alen: 套接字地址结构的长度。
+// host：用于存储主机名的缓冲区。
+// hostlen：主机名缓冲区的大小。
+// service: 用于存储服务名的缓冲区。
+// servlen：服务名缓冲区的大小。
+// flags：用于改变函数默认行为的标志。
+//      flags 参数可以设置多个标志位，例如：
+//      NI_NOFQDN: 只为本地主机返回不完全限定的域名。
+//      NI_DGRAM:  服务基于数据报而非基于字节流
+//      NI_NUMERICHOST: 返回地址的数值形式而不是名称。
+//      NI_NAMEREQD: 如果找不到主机名，则返回错误。
+//      NI_NUMERICSERV: 返回服务地址的数值形式（例如端口号）而不是名称。
+
+```
+
+## 地址绑定
+```C
+#include <sys/socket.h>
+
+// 绑定套接字
+int bind(int sockfd, const struct sockaddr *addr, socklen_t len);
+
+// 发现绑定到一个套接字的地址
+int getsockname(int sockfd, struct sockaddr *restrict addr,
+                socklen_t *restrict alenp);
+
+// 获取对方地址
+int getpeername(int sockfd, struct sockaddr *restrict addr,
+                socklen_t *restrict alenp)
+```
+
+## 建立连接
+```C
+#include <sys/socket.h>
+
+// 面向连接的网络服务（SOCK_STREAM或SOCK_SEQPACKET）
+// 客户端与服务端建立连接
+int connect(int sockfd, const struct sockaddr *addr, socklen_t len);
+//return 0成功 -1失败
+
+// 宣告可以接受连接请求
+int listen(int sockfd, int backlog);
+// backlog 是一个提示，用于标识该进程要入队连接的请求数量。
+// 上线由<sys/socket.h>中的SOMAXCONN指定
+
+//服务器活动连接请求并建立连接
+int accept(int sockfd, const struct sockaddr *addr, socklen_t len)
+// return 成功返回与客户端连接的套接字描述符，出错则返回-1
+// 如果没有请求连接等待处理，accept会阻塞直到一个请求，
+// 如果sockfd处于非阻塞模式，accept返回-1并将errno设置为EAGAIN或EWOULDBLOCK
+```
+## 数据传输
+
+### 消息发送
+```C
+#include <sys/socket.h>
+// 面向连接，目标地址忽略，目标地址蕴涵在连接中
+ssize_t send(int sockfd, const void *buf, size_t nbytes, int flags);
+// flags:
+//      - MSG_DONTROUTE 数据不允许出本地网络
+//      - MSG_DONTWAIT 允许非阻塞操作
+//      - MSG_EOR 记录结束（如果协议支持）
+//      - MSG_OOB 带外数据（如果协议支持）
+// send成功返回不必然标识连接另一端收到数据，它只保证数据无错误地发送到网络上
+
+// sendto 允许再无连接地套接字上指定一个目标地址发送
+ssize_t sendto(int sockfd, const void *buf, size_t nbytes, int flags
+                const struct sockaddr *destaddr, socklen_t destlen);
+// 指定多重缓冲区传输数
+ssize_t sendmsg(int sockfd, const struct msghdr *msg, int flags);
+
+```
+
+### 消息接收
+
+```C
+#include <sys/socket.h>
+// 面向连接，目标地址忽略，目标地址蕴涵在连接中
+ssize_t recv(int sockfd, const void *buf, size_t nbytes, int flags);
+// flags:
+//      - MSG_PEEK 返回报文内容而不是取走报文
+//      - MSG_WAITALL 等待直到所有的数据可用
+//      - MSG_TRUNC 即使报文被截断，也返回报文实际长度（如果协议支持）
+//      - MSG_OOB 接收带外数据（如果协议支持）
+// send成功返回不必然标识连接另一端收到数据，它只保证数据无错误地发送到网络上
+
+// recvfrom 允许再无连接地套接字上指定一个目标地址接收
+ssize_t recvfrom(int sockfd, const void *buf, size_t nbytes, int flags
+                const struct sockaddr *destaddr, socklen_t destlen);
+// 数据接收送入多个缓冲区
+ssize_t recvmsg(int sockfd, const struct msghdr *msg, int flags);
+
+```
+
+
+
+## 套接字选项
+
+### 设置选项
+
+```C
+#include <sys/socket.h>
+int setsockopt(int sockfd, int level, int option, const void *val, socklen_t len);
+```
+
+#### 参数
+
+- sockfd: 套接字描述符
+- level：协议号
+- option：要设置的选项名称
+- val: 选项值
+- len：值长度
+
+### 获取选项
+
+```C
+#include <sys/socket.h>
+int getsockopt(int sockfd, int level, int option, const void *restrict val, socklen_t *restrict lenp);
+```
+
+#### 参数
+
+
+
+- **sockfd**：这是一个打开的套接字文件描述符。
+- **level**：选项所在的协议层。例如，SOL_SOCKET表示套接字层，IPPROTO_IP表示IP层，IPPROTO_TCP表示TCP层。
+- **option**：需要获取的选项名称，例如SO_REUSEADDR或SO_KEEPALIVE。
+- **val**：一个指向变量的指针，该变量用于存储选项的当前值。
+- **lenp**：一个指向存储val所指向的数据长度的变量的指针。
+
+lenp是指向整数的指针， 在调用getsockopt之前，设置该证书为负值选项缓冲区的大小。如果实际尺寸大于此值，选项会被截断；如果实际尺寸正好等于或小于此值，那么返回时将此值更新为实际尺寸。
+
